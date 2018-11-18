@@ -6,7 +6,7 @@
 #include <sstream>
 
 const int LOOP_NUMBER = 1000;
-const int PRODUCER_NUMBER = 2;
+const int PRODUCER_NUMBER = 4;
 const int CONSUMER_NUMBER = 3;
 
 void generrate_data(threadsafe_stack<int>& s, threadsafe_queue<std::string>& q)
@@ -17,43 +17,43 @@ void generrate_data(threadsafe_stack<int>& s, threadsafe_queue<std::string>& q)
     s.push(i);
 
     std::stringstream ss;
-    ss << "produced: " << i;
+    ss << "thread id: " << std::this_thread::get_id() << " produced: " << i;
     strLog = ss.str();
     q.push(strLog);
   }
 }
 
-void consume_data(threadsafe_stack<int>& s, threadsafe_queue<std::string>& q)
+void consume_data(threadsafe_stack<int>& s, threadsafe_queue<std::string>& q, bool& bStopProduced)
 {
   std::string strLog;
-  for(int i = 0; i < LOOP_NUMBER; ++i)
+  int value;
+  while(!bStopProduced || !s.empty())
   {
-    int value;
     try
     {
       s.pop(value);
 
       std::stringstream ss;
-      ss << "consumed: " << value;
+      ss << "thread id: " << std::this_thread::get_id() << " consumed: " << value;
       strLog = ss.str();
       q.push(strLog);
     }
     catch(std::exception& e)
     {
       std::stringstream ss;
-      ss << e.what() << "while consume";
+      ss << "thread id: " <<  std::this_thread::get_id() << " " << e.what() << " while consume";
       strLog = ss.str();
       q.push(strLog);
     }
 
-    std::this_thread::yield();
   }
+
 }
 
 void printLog(threadsafe_queue<std::string>& q, bool& bDone)
 {
   std::string strLog;
-  while(!bDone)
+  while(!bDone || !q.empty())
   {
     if(q.try_pop(strLog))
     {
@@ -68,25 +68,29 @@ void printLog(threadsafe_queue<std::string>& q, bool& bDone)
 
 void test()
 {
-  std::vector<std::thread> v;
   threadsafe_stack<int> s;
   threadsafe_queue<std::string> q;
   bool bDone(false);
+  bool bStopProduced(false);
 
+  std::vector<std::thread> vProduced;
   for(int i = 0; i < PRODUCER_NUMBER; ++i)
   {
-    v.emplace_back(std::thread(generrate_data, std::ref(s), std::ref(q)));
+    vProduced.emplace_back(std::thread(generrate_data, std::ref(s), std::ref(q)));
   }
 
+  std::vector<std::thread> vConsume;
   for(int i = 0; i < CONSUMER_NUMBER; ++i)
   {
-    v.emplace_back(std::thread(consume_data, std::ref(s), std::ref(q)));
+    vConsume.emplace_back(std::thread(consume_data, std::ref(s), std::ref(q), std::ref(bStopProduced)));
   }
 
-  std::thread log_thread(printLog, std::ref(q), std::ref(bDone));
+  std::thread log_thread(printLog, std::ref(q), std::ref(bDone) );
 
-  for_each(v.begin(), v.end(), std::mem_fn(&std::thread::join));
+  for_each(vProduced.begin(), vProduced.end(), std::mem_fn(&std::thread::join));
+  bStopProduced = true;
 
+  for_each(vConsume.begin(), vConsume.end(), std::mem_fn(&std::thread::join));
   bDone = true;
 
   log_thread.join();

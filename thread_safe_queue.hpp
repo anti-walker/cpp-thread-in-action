@@ -9,7 +9,7 @@ class threadsafe_queue
 {
 private:
   std::queue<T> _data_queue;
-  std::mutex _m;
+  mutable std::mutex _m;
   std::condition_variable _data_cond;
 
 public:

@@ -19,7 +19,7 @@ class threadsafe_stack
 {
 private:
   std::stack<T> _data;
-  std::mutex _m;
+  mutable std::mutex _m;
 
 public:
   threadsafe_stack() {}
