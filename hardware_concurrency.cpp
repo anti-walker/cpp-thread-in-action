@@ -58,20 +58,20 @@ void test_deadlock_with_mutex()
 	for_each(v.begin(), v.end(), mem_fn(&thread::join));
 }
 
-template<class T>
-void second_lock_guard(T& m)
+template<class Lockable>
+void second_lock_guard(Lockable& m)
 {
-	lock_guard<T> lock(m);
+	lock_guard<Lockable> lock(m);
 	for(int i = 0; i < 10; ++i)
 	{
 		cout<< "  " << i <<endl;
 	}
 }
 
-template<class T>
-void first_lock_guard(T& m)
+template<class Lockable>
+void first_lock_guard(Lockable& m)
 {
-	lock_guard<T> lock(m);
+	lock_guard<Lockable> lock(m);
 	for(int i  = 0; i < 10; ++i)
 	{
 		cout << i << endl;
@@ -79,28 +79,14 @@ void first_lock_guard(T& m)
 	second_lock_guard(m);
 }
 
-
-void test_deadlock_with_lockguard()
+template<class MutexType>
+void test_deadlock_by_recursive_with_lockguard(MutexType& m)
 {
 	int iMaxThread = get_max_threads_count();
-	mutex m;
 	vector<thread> v;
 	for (int i = 0; i < iMaxThread; ++i)
 	{
-		v.push_back(std::thread(first_lock_guard<mutex>, ref(m)));
-	}
-
-	for_each(v.begin(), v.end(), mem_fn(&thread::join));
-}
-
-void test_recursive_mutex_with_lockguard()
-{
-	int iMaxThread = get_max_threads_count();
-	recursive_mutex m;
-	vector<thread> v;
-	for (int i = 0; i < iMaxThread; ++i)
-	{
-		v.push_back(std::thread(first_lock_guard<recursive_mutex>, ref(m)));
+		v.push_back(std::thread(first_lock_guard<MutexType>, ref(m)));
 	}
 
 	for_each(v.begin(), v.end(), mem_fn(&thread::join));
@@ -108,10 +94,13 @@ void test_recursive_mutex_with_lockguard()
 
 int main(int argc,char *argv[])
 {
+	recursive_mutex rm;
+	test_deadlock_by_recursive_with_lockguard(rm);// this won't deadlock
 
-	test_recursive_mutex_with_lockguard();
-	cout<< "-----------------------" <<endl;
-	test_deadlock_with_lockguard();
+	cout<< "-------------------------------------------------------------" <<endl;
+
+	mutex m;
+	test_deadlock_by_recursive_with_lockguard(m); // this will deadlock
 
 	return 0;
 }
