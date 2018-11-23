@@ -25,7 +25,7 @@ public:
   threadsafe_stack() {}
   threadsafe_stack(const threadsafe_stack& r)
   {
-    std::lock_guard<std::mutex> lock(_m);
+    std::lock_guard<Lockable> lock(_m);
     _data = r._data;
   }
 
