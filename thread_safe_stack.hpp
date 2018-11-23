@@ -14,12 +14,12 @@ const char* empty_stack::what() const throw()
   return "empty in stack";
 }
 
-template<class T>
+template<class T, class Lockable>
 class threadsafe_stack
 {
 private:
   std::stack<T> _data;
-  mutable std::mutex _m;
+  mutable Lockable _m;
 
 public:
   threadsafe_stack() {}
@@ -33,13 +33,13 @@ public:
 
   void push(const T& value)
   {
-    std::lock_guard<std::mutex> lock(_m);
+    std::lock_guard<Lockable> lock(_m);
     _data.push(value);
   }
 
   std::shared_ptr<T> pop()
   {
-    std::lock_guard<std::mutex> lock(_m);
+    std::lock_guard<Lockable> lock(_m);
     if (_data.empty())
     {
       throw empty_stack();
@@ -52,7 +52,7 @@ public:
 
   void pop(T& value)
   {
-    std::lock_guard<std::mutex> lock(_m);
+    std::lock_guard<Lockable> lock(_m);
     if (_data.empty())
     {
       throw empty_stack();
@@ -63,7 +63,7 @@ public:
 
   bool empty() const
   {
-    std::lock_guard<std::mutex> lock(_m);
+    std::lock_guard<Lockable> lock(_m);
     return _data.empty();
   }
 };

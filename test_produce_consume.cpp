@@ -1,5 +1,6 @@
 #include "thread_safe_stack.hpp"
 #include "thread_safe_queue.hpp"
+#include "spin_lock.h"
 #include <vector>
 #include <thread>
 #include <iostream>
@@ -9,7 +10,8 @@ const int LOOP_NUMBER = 1000;
 const int PRODUCER_NUMBER = 4;
 const int CONSUMER_NUMBER = 3;
 
-void generrate_data(threadsafe_stack<int>& s, threadsafe_queue<std::string>& q)
+template<class Lockable>
+void generrate_data(threadsafe_stack<int,Lockable>& s, threadsafe_queue<std::string>& q)
 {
   std::string strLog;
   for(int i = 0; i < LOOP_NUMBER; ++i)
@@ -23,7 +25,8 @@ void generrate_data(threadsafe_stack<int>& s, threadsafe_queue<std::string>& q)
   }
 }
 
-void consume_data(threadsafe_stack<int>& s, threadsafe_queue<std::string>& q, bool& bStopProduced)
+template<class Lockable>
+void consume_data(threadsafe_stack<int,Lockable>& s, threadsafe_queue<std::string>& q, bool& bStopProduced)
 {
   std::string strLog;
   int value;
@@ -66,9 +69,10 @@ void printLog(threadsafe_queue<std::string>& q, bool& bDone)
   }
 }
 
+template<class Lockable>
 void test()
 {
-  threadsafe_stack<int> s;
+  threadsafe_stack<int,Lockable> s;
   threadsafe_queue<std::string> q;
   bool bDone(false);
   bool bStopProduced(false);
@@ -76,13 +80,13 @@ void test()
   std::vector<std::thread> vProduced;
   for(int i = 0; i < PRODUCER_NUMBER; ++i)
   {
-    vProduced.emplace_back(std::thread(generrate_data, std::ref(s), std::ref(q)));
+    vProduced.emplace_back(std::thread(generrate_data<Lockable>, std::ref(s), std::ref(q)));
   }
 
   std::vector<std::thread> vConsume;
   for(int i = 0; i < CONSUMER_NUMBER; ++i)
   {
-    vConsume.emplace_back(std::thread(consume_data, std::ref(s), std::ref(q), std::ref(bStopProduced)));
+    vConsume.emplace_back(std::thread(consume_data<Lockable>, std::ref(s), std::ref(q), std::ref(bStopProduced)));
   }
 
   std::thread log_thread(printLog, std::ref(q), std::ref(bDone) );
@@ -99,6 +103,6 @@ void test()
 
 int main(int argc, char *argv[])
 {
-  test();
+  test<spin_lock>();
   return 0;
 }

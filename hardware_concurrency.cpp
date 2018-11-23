@@ -4,8 +4,32 @@
 #include <functional>
 #include <algorithm>
 #include <mutex>
+#include <atomic>
 using namespace std;
 
+class spin_lock
+{
+	std::atomic_flag _lock  = ATOMIC_FLAG_INIT;
+public:
+	spin_lock()
+	{
+
+	}
+
+	void lock()
+	{
+		while(_lock.test_and_set())
+		{
+			std::this_thread::yield();
+		}
+	}
+
+	void unlock()
+	{
+		_lock.clear();
+	}
+
+};
 
 void thread_print(int i,mutex& m)
 {
@@ -20,42 +44,6 @@ int get_max_threads_count()
 	cout<<"max thread number is: " << iMaxThread << endl;
 
 	return iMaxThread;
-}
-
-void second_lock(mutex& m)
-{
-	m.lock();
-	for(int i = 0; i < 10; ++i)
-	{
-		cout<< "  " << i <<endl;
-	}
-
-	m.unlock();
-}
-
-void first_lock(mutex& m)
-{
-	m.lock();
-	for(int i  = 0; i < 10; ++i)
-	{
-		cout << i << endl;
-	}
-	second_lock(m); // this will deadlock
-
-	m.unlock();
-}
-
-void test_deadlock_with_mutex()
-{
-	int iMaxThread = get_max_threads_count();
-	mutex m;
-	vector<thread> v;
-	for (int i = 0; i < iMaxThread; ++i)
-	{
-		v.push_back(std::thread(first_lock, ref(m)));
-	}
-
-	for_each(v.begin(), v.end(), mem_fn(&thread::join));
 }
 
 template<class Lockable>
@@ -94,13 +82,18 @@ void test_deadlock_by_recursive_with_lockguard(MutexType& m)
 
 int main(int argc,char *argv[])
 {
-	recursive_mutex rm;
-	test_deadlock_by_recursive_with_lockguard(rm);// this won't deadlock
+	// recursive_mutex rm;
+	// test_deadlock_by_recursive_with_lockguard(rm);// this won't deadlock
+	//
+	// cout<< "-------------------------------------------------------------" <<endl;
+	//
+	// mutex m;
+	// test_deadlock_by_recursive_with_lockguard(m); // this will deadlock
 
 	cout<< "-------------------------------------------------------------" <<endl;
+	spin_lock l;
+	test_deadlock_by_recursive_with_lockguard(l);
 
-	mutex m;
-	test_deadlock_by_recursive_with_lockguard(m); // this will deadlock
 
 	return 0;
 }
