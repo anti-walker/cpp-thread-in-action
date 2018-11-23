@@ -44,7 +44,7 @@ public:
     {
       throw empty_stack();
     }
-    std::shared_ptr<T> value(std::make_shared<T>(_data.top()));
+    std::shared_ptr<T> value(std::make_shared<T>(std::move(_data.top())));
     _data.pop();
 
     return value;
@@ -57,7 +57,7 @@ public:
     {
       throw empty_stack();
     }
-    value = _data.top();
+    value = std::move(_data.top());
     _data.pop();
   }
 
