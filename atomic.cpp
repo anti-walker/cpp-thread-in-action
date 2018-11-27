@@ -3,11 +3,54 @@
 #include <vector>
 #include <atomic>
 #include <chrono>
+#include <future>
+#include <utility>
 using namespace std;
 
 
 std::vector<int> v;
 atomic<bool> data_ready = {false};
+int data = 0;
+
+void read_data_p(promise<int> p, promise<bool> p2)
+{
+	bool ready = data_ready.load(memory_order_acquire);
+	p.set_value(data);
+	p2.set_value(ready);
+}
+
+void read_data()
+{
+	bool ready = data_ready.load(memory_order_acquire);
+	cout<<"read ready: " << ready << "value: "<< data << endl;
+}
+
+void write_data()
+{
+	data = 1000;
+	data_ready.store(true, memory_order_release);
+}
+
+void test_aquire_release()
+{
+	promise<int> p;
+	promise<bool> p2;
+	future<int> f = p.get_future();
+	future<bool> f2 = p2.get_future();
+
+	thread r(read_data_p, move(p), move(p2));
+	thread r1(read_data);
+	thread w(write_data);
+
+	bool f2ready = f2.get();
+	int f2value = f.get();
+	cout<< "ready: " << f2ready << "value: " << f2value << endl;
+
+	r.join();
+	r1.join();
+	w.join();
+}
+
 
 void read_thread()
 {
@@ -63,5 +106,6 @@ void test1()
 
 int main(int argc,char *argv[])
 {
+	test_aquire_release();
 	return 0;
 }
